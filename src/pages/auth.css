@@ -1,0 +1,25 @@
+.auth-page{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  background: #ffffff;
+  padding:2rem;
+}
+.auth-card{
+  width:100%;
+  max-width:360px;
+  background:#ffffff;
+  padding:2rem 2.2rem;
+  border-radius:10px;
+  box-shadow: 0 12px 40px rgba(16,24,40,0.08);
+  color:#071226;
+  text-align:left;
+}
+.auth-card h2{margin:0 0 1rem;text-align:center;font-size:1.15rem}
+.auth-card label{display:block;margin-bottom:0.6rem;font-size:0.85rem;color:#334155}
+.auth-card input{width:100%;padding:0.7rem;border-radius:6px;border:1px solid #e6eef8;background:#eef6ff;color:#071226}
+.auth-card button{margin-top:0.9rem;width:100%;padding:0.7rem;border-radius:8px;background:linear-gradient(90deg,#14a44d,#0a8b2b);border:none;color:#fff;font-weight:600}
+.muted{color:#94a3b8;font-size:0.9rem;margin-top:0.6rem;text-align:center}
+.auth-card .hint{font-size:0.85rem;color:#64748b;margin-top:0.6rem;text-align:center}
+
