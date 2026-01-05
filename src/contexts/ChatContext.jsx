@@ -1,7 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { AuthContext } from "./AuthContext";
 import api from "../utils/api";
-import socket from "../utils/socket";
 
 export const ChatContext = createContext(null);
 
@@ -73,109 +72,7 @@ export function ChatProvider({ children }) {
     };
   }, [user]);
 
-  // connect websocket when user logs in; cleanup on logout
-  useEffect(() => {
-    if (!user) {
-      try {
-        socket.close();
-      } catch {}
-      return;
-    }
-    // open socket; backend expects path like /ws/chat/<recipient>/ where recipient is a user id
-    const BACKEND_WS_HOST = "172.20.120.103:8000";
-    // determine recipient for the socket path
-    let socketRecipient = null;
-    if (user?.role === "tutor") socketRecipient = selectedStudent;
-    else if (user?.role === "student") {
-      try {
-        const su = JSON.parse(localStorage.getItem("user"));
-        socketRecipient = su?.tutor?.user_id || su?.tutor?.id || null;
-      } catch {}
-    }
-
-    if (!socketRecipient) {
-      console.debug("[ChatContext] no socket recipient, skipping connect");
-      return;
-    }
-
-    console.debug("[ChatContext] connecting socket", { socketRecipient });
-    const ws = socket.connect({
-      host: BACKEND_WS_HOST,
-      recipient: socketRecipient,
-    });
-
-    const offOpen = socket.on("open", () => console.debug("[socket] open"));
-    const offClose = socket.on("close", () => console.debug("[socket] close"));
-    const offErr = socket.on("error", (e) => console.warn("[socket] error", e));
-
-    // handle incoming messages
-    const offMsg = socket.on("message", (payload) => {
-      console.debug("[socket] message", payload);
-      try {
-        if (!payload) return;
-        const type = payload.type || payload.event || null;
-        const data = payload.data || payload;
-        if (type === "message" || data?.type === "message") {
-          const msg = data?.data || data;
-          // determine conversation key — backend should send dialog_id, or sender/recipient
-          const senderId =
-            msg.sender || msg.from || msg.user_id || msg.user || null;
-          const recipientId = msg.recipient || msg.to || msg.target || null;
-          const convKey = String(
-            msg.dialog_id || senderId || recipientId || ""
-          );
-          if (!convKey) return;
-          setMessages((prev) => {
-            const list = prev[convKey] ? [...prev[convKey]] : [];
-            const normalized = {
-              id: msg.id || Date.now(),
-              sender: msg.sender || msg.from || null,
-              content: msg.content || msg.text || "",
-              timestamp: msg.timestamp || msg.date || new Date().toISOString(),
-              files: msg.files || msg.attachments || [],
-            };
-            return { ...prev, [convKey]: [...list, normalized] };
-          });
-          // also append to recipient key so both sides show message in their conversation
-          if (recipientId) {
-            const rKey = String(recipientId);
-            setMessages((prev) => {
-              const list = prev[rKey] ? [...prev[rKey]] : [];
-              const normalized = {
-                id: msg.id || Date.now(),
-                sender: msg.sender || msg.from || null,
-                content: msg.content || msg.text || "",
-                timestamp:
-                  msg.timestamp || msg.date || new Date().toISOString(),
-                files: msg.files || msg.attachments || [],
-              };
-              return { ...prev, [rKey]: [...list, normalized] };
-            });
-          }
-        }
-      } catch (e) {
-        console.error("ws message handling failed", e, payload);
-      }
-    });
-
-    return () => {
-      try {
-        offMsg();
-      } catch {}
-      try {
-        offOpen();
-      } catch {}
-      try {
-        offClose();
-      } catch {}
-      try {
-        offErr();
-      } catch {}
-      try {
-        socket.close();
-      } catch {}
-    };
-  }, [user, selectedStudent]);
+  // WebSocket integrations removed - chat uses HTTP REST endpoints only
 
   function selectGroup(groupId) {
     setSelectedGroup(groupId);

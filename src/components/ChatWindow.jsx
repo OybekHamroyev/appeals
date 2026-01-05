@@ -6,7 +6,6 @@ import { TranslationContext } from "../contexts/TranslationContext";
 import { FaPaperclip, FaPaperPlane } from "react-icons/fa";
 import Badge from "@mui/material/Badge";
 import api from "../utils/api";
-import socket from "../utils/socket";
 
 export default function ChatWindow() {
   const { students, messages, selectedGroup, selectedStudent, sendMessage } =
@@ -53,26 +52,7 @@ export default function ChatWindow() {
       url: URL.createObjectURL(f),
     }));
 
-    // If there are no attachments and websocket is connected, prefer WS send
-    if (files.length === 0 && socket.isConnected()) {
-      const payload = {
-        type: "message",
-        data: {
-          recipient,
-          content,
-        },
-      };
-      console.debug("[ChatWindow] sending via WS", payload);
-      const ok = socket.send(payload);
-      if (ok) {
-        // optimistic append
-        sendMessage(convId, senderRole, content, []);
-        setText("");
-        return;
-      }
-      console.warn("[ChatWindow] ws send returned false, falling back to HTTP");
-      // fall through to HTTP multipart below
-    }
+    // send via HTTP multipart (includes attachments)
 
     // otherwise fallback to HTTP multipart for files or if ws unavailable
     const form = new FormData();
