@@ -52,26 +52,14 @@ export default function ChatWindow() {
       url: URL.createObjectURL(f),
     }));
 
-    // send via HTTP multipart (includes attachments)
-
-    // otherwise fallback to HTTP multipart for files or if ws unavailable
-    const form = new FormData();
-    if (recipient) form.append("recipient", recipient);
-    form.append("content", content);
-    files.forEach((f) => form.append("files", f));
-
     try {
-      await api.post("/api/send-message/", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      sendMessage(convId, senderRole, content, attachments);
+      await sendMessage(recipient, content, files);
       setText("");
       setFiles([]);
       if (fileRef.current) fileRef.current.value = null;
     } catch (err) {
       console.error("Failed to send message", err);
-      // optimistic append even on failure so user sees message; real app should show status
-      sendMessage(convId, senderRole, content, attachments);
+      // keep optimistic UI (already added)
       setText("");
       setFiles([]);
       if (fileRef.current) fileRef.current.value = null;

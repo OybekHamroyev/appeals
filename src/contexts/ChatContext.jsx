@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { AuthContext } from "./AuthContext";
 import api from "../utils/api";
+import socket from "../utils/socket";
 
 export const ChatContext = createContext(null);
 
@@ -72,7 +73,94 @@ export function ChatProvider({ children }) {
     };
   }, [user]);
 
-  // WebSocket integrations removed - chat uses HTTP REST endpoints only
+  // WebSocket integration: connect to backend Channels to receive broadcasted messages
+  useEffect(() => {
+    if (!user) {
+      try {
+        socket.close();
+      } catch {}
+      return;
+    }
+
+    // determine which recipient id to use in the websocket path
+    let socketRecipient = null;
+    if (user?.role === "tutor") socketRecipient = selectedStudent;
+    else if (user?.role === "student")
+      socketRecipient = user?.tutor?.user_id || user?.tutor?.id || null;
+
+    if (!socketRecipient) {
+      // nothing to connect to
+      try {
+        socket.close();
+      } catch {}
+      return;
+    }
+
+    const apiBase = api.defaults?.baseURL || "http://172.20.120.103:8000";
+    const host = apiBase.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+    console.debug("[ChatContext] connecting socket", { host, socketRecipient });
+    socket.connect({ host, recipient: socketRecipient });
+
+    const offOpen = socket.on("open", () => console.debug("[socket] open"));
+    const offClose = socket.on("close", () => console.debug("[socket] close"));
+    const offErr = socket.on("error", (e) => console.warn("[socket] error", e));
+
+    const offMsg = socket.on("message", (payload) => {
+      try {
+        const msg = payload || {};
+        const msgId = msg.id || null;
+        const normalized = {
+          id: msgId || Date.now(),
+          sender: msg.sender || null,
+          content: msg.content || msg.text || "",
+          timestamp: msg.timestamp || msg.date || new Date().toISOString(),
+          files: msg.files || msg.attachments || [],
+        };
+
+        // compute conversation key where this message should be stored
+        if (user?.role === "student") {
+          const key = String(user.id);
+          setMessages((prev) => {
+            const list = prev[key] ? [...prev[key]] : [];
+            if (msgId && list.find((m) => m.id === msgId)) return prev;
+            return { ...prev, [key]: [...list, normalized] };
+          });
+        } else {
+          const senderId = msg.sender?.id || msg.sender || null;
+          const recipientId = msg.recipient || msg.to || null;
+          const otherId = senderId === user.id ? recipientId : senderId;
+          if (!otherId) return;
+          const key = String(otherId);
+          setMessages((prev) => {
+            const list = prev[key] ? [...prev[key]] : [];
+            if (msgId && list.find((m) => m.id === msgId)) return prev;
+            return { ...prev, [key]: [...list, normalized] };
+          });
+        }
+      } catch (e) {
+        console.error("[ChatContext] ws message handler error", e, payload);
+      }
+    });
+
+    return () => {
+      try {
+        offMsg();
+      } catch {}
+      try {
+        offOpen();
+      } catch {}
+      try {
+        offClose();
+      } catch {}
+      try {
+        offErr();
+      } catch {}
+      try {
+        socket.close();
+      } catch {}
+    };
+  }, [user, selectedStudent]);
 
   function selectGroup(groupId) {
     setSelectedGroup(groupId);
@@ -130,19 +218,62 @@ export function ChatProvider({ children }) {
     };
   }, [user, selectedStudent]);
 
-  // attachments: array of { name, size, type, url }
-  function sendMessage(studentId, from, text, attachments = []) {
+  // sendMessage: send to server (FormData) with optimistic UI
+  async function sendMessage(recipientId, content, files = []) {
+    if (!recipientId) throw new Error("recipient required");
+
+    const fromId = user?.id || user?.user_id;
+    const isTutor = user?.role === "tutor";
+    const convKey = isTutor ? String(recipientId) : String(fromId);
+
+    // optimistic temp message
+    const tempId = `temp_${Date.now()}`;
+    const tempMsg = {
+      id: tempId,
+      sender: { id: fromId, full_name: user?.fullName || user?.full_name },
+      content: content || "",
+      timestamp: new Date().toISOString(),
+      files: (files || []).map((f) => ({
+        name: f.name,
+        url: URL.createObjectURL(f),
+      })),
+      optimistic: true,
+    };
     setMessages((prev) => {
-      const list = prev[studentId] ? [...prev[studentId]] : [];
-      const msg = {
-        id: Date.now(),
-        from,
-        text,
-        date: new Date().toISOString(),
-        attachments: attachments || [],
-      };
-      return { ...prev, [studentId]: [...list, msg] };
+      const list = prev[convKey] ? [...prev[convKey]] : [];
+      return { ...prev, [convKey]: [...list, tempMsg] };
     });
+
+    // send to server
+    const fd = new FormData();
+    fd.append("recipient", String(recipientId));
+    fd.append("content", content || "");
+    (files || []).forEach((f) => fd.append("files", f));
+
+    try {
+      const res = await api.post("/api/send-message/", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const serverMsg = res.data;
+
+      // reconcile: replace temp message or append server message if not present
+      setMessages((prev) => {
+        const list = prev[convKey] ? [...prev[convKey]] : [];
+        // remove any temp messages with same content/timestamp heuristic
+        const cleaned = list.filter(
+          (m) => String(m.id).indexOf("temp_") === -1
+        );
+        if (!cleaned.find((m) => m.id === serverMsg.id))
+          cleaned.push(serverMsg);
+        return { ...prev, [convKey]: cleaned };
+      });
+
+      return serverMsg;
+    } catch (err) {
+      console.error("sendMessage failed", err);
+      // leave optimistic message (could mark as failed)
+      throw err;
+    }
   }
 
   return (
