@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
+import api from "../utils/api";
 
 export const AuthContext = createContext(null);
 
@@ -42,12 +43,28 @@ export function AuthProvider({ children }) {
     return mock;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // attempt server-side logout (blacklist refresh token or invalidate session)
+    try {
+      if (user && user.refresh) {
+        await api.post("/api/logout/", { refresh: user.refresh });
+      } else {
+        // best-effort call if server doesn't require body
+        await api.post("/api/logout/");
+      }
+    } catch (e) {
+      // don't block local logout on server failures
+      // console.warn allowed for diagnostics
+      console.warn("logout request failed", e?.response || e?.message || e);
+    }
+
+    // clear client state and local storage
     setUser(null);
     try {
-      // clear relevant localStorage keys
       localStorage.removeItem("user");
       localStorage.removeItem("check_user");
+      localStorage.removeItem("chat.selectedGroup");
+      localStorage.removeItem("chat.selectedStudent");
     } catch (e) {
       // ignore
     }

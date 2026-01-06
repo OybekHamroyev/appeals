@@ -14,7 +14,11 @@ export default function Main() {
       <div className="app-shell">
         <Header />
         {user?.role === "tutor" && <GroupList />}
-        <div className="layout two-col">
+        <div
+          className={`layout ${user?.role === "tutor" ? "two-col" : ""} ${
+            user?.role === "student" ? "student-mode" : ""
+          }`}
+        >
           {user?.role === "tutor" ? (
             <>
               <StudentList />

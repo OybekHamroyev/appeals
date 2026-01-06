@@ -1,8 +1,13 @@
 .app-shell{height:100vh;display:flex;flex-direction:column;background:#f8fafc}
-.layout{display:grid;grid-template-columns:220px 260px 1fr;gap:18px;padding:32px;flex:1;max-width:100%;overflow:hidden}
-.layout.two-col{grid-template-columns:360px 1fr;padding:18px}
+.layout{display:grid;grid-template-columns:220px 260px 1fr;gap:18px;padding:32px;flex:1;max-width:100%;overflow:hidden;height:calc(100vh - 72px)}
+.layout.two-col {
+  grid-template-columns: clamp(320px, 30%, 400px) 1fr;
+  padding: 18px;
+}
+/* when in student mode, use block layout so chat column expands fully */
+.layout.student-mode{display:block;padding:18px}
 .tutor-info{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:16px}
-.col{background:#ffffff;border-radius:10px;padding:14px;color:#071226;box-shadow:0 10px 30px rgba(2,6,23,0.06);display:flex;flex-direction:column;height:100%;}
+.col{background:#ffffff;border-radius:10px;padding:14px;color:#071226;box-shadow:0 10px 30px rgba(2,6,23,0.06);display:flex;flex-direction:column;height:100%;min-height:0}
 .groups ul,.students ul{list-style:none;margin:0;padding:0}
 .group-tabs {
   grid-column: 1 / -1;
@@ -14,9 +19,10 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  flex-wrap: wrap;
 }
 .tab {
-  padding: 8px 14px;
+  padding: 8px 12px;
   background: linear-gradient(180deg, #f7fbff, #eef7ff);
   border-radius: 999px;
   cursor: pointer;
@@ -34,17 +40,17 @@
 .groups li.active,.students li.active{background:linear-gradient(90deg,#f0fbf3,#e6f9ea)}
 .avatar{width:44px;height:44px;border-radius:999px;background:#e6f6ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#0b1220}
 .student .meta{font-size:0.95rem}
-.chat{display:flex;flex-direction:column;min-height:0}
+.chat{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .chat.empty{display:flex;align-items:center;justify-content:center;color:#94a3b8}
 .chat-header{display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid rgba(2,6,23,0.04)}
-.messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-.message{display:flex;align-items:flex-start;gap:10px}
-.msg-avatar{width:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:center}
+.messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.message{display:flex;align-items:flex-start;gap:8px}
+.msg-avatar{width:40px;flex:0 0 40px;display:flex;align-items:flex-start;justify-content:flex-start;margin-top:4px}
 .avatar-initial{width:36px;height:36px;border-radius:999px;background:#e6f6ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#075985}
 .message.me{justify-content:flex-end}
-.bubble{max-width:70%;background:#f8fffa;padding:12px;border-radius:10px;border:1px solid rgba(11,17,34,0.03)}
+.bubble{max-width:78%;background:#f8fffa;padding:10px;border-radius:10px;border:1px solid rgba(11,17,34,0.03);word-break:break-word}
 .message .meta{font-size:0.75rem;color:#64748b;margin-bottom:6px}
-.composer{display:flex;gap:8px;padding:10px;border-top:1px solid rgba(2,6,23,0.04)}
+.composer{display:flex;gap:8px;padding:10px;border-top:1px solid rgba(2,6,23,0.04);align-items:center;flex:0 0 auto}
 .composer input{flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef8;background:#f0f9ff;color:#071226}
 .composer input[type="file"]{flex:0 0 200px}
 .composer button{padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,#14a44d,#0a8b2b);border:none;color:#fff}
@@ -70,6 +76,32 @@
   .chat{order:2}
 }
 
+/* custom scrollbar styling (Webkit-based browsers) */
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#d1e7ff,#9fc9ff);border-radius:10px;border:2px solid #fff}
+
+/* Firefox scrollbar */
+*{scrollbar-width:thin;scrollbar-color:#9fc9ff #fff}
+
 /* Student-centered chat: wider and centered */
-.chat.student-centered{max-width:900px;margin:0 auto;padding:20px}
-.chat.student-centered .messages{max-height:70vh}
+.chat.student-centered{max-width:920px;margin:0 auto;padding:20px}
+.chat.student-centered .messages{max-height:78vh}
+
+/* ensure columns don't cause horizontal scroll on small screens */
+.layout, .col{box-sizing:border-box}
+.groups ul, .students ul {max-width:100%;overflow:hidden}
+
+/* force avatar on left for all messages visually by ordering bubble after avatar */
+.message.me .msg-avatar{order:1;margin-left:8px}
+.message.me .bubble{order:2;margin-right:0}
+.message .msg-avatar{order:0}
+.message .bubble{order:1}
+
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr;grid-auto-rows:min-content;padding:12px}
+  .groups,.students{order:0}
+  .chat{order:2}
+  .chat.student-centered{padding:12px}
+  .bubble{max-width:100%}
+}

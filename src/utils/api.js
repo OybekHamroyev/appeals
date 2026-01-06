@@ -25,7 +25,20 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    // handle 401 globally etc.
+    // handle 401 globally: clear local auth and redirect to login
+    try {
+      const status = error?.response?.status;
+      if (status === 401) {
+        try {
+          localStorage.removeItem("user");
+          localStorage.removeItem("check_user");
+        } catch (e) {}
+        // navigate to login
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+      }
+    } catch (e) {}
     return Promise.reject(error);
   }
 );

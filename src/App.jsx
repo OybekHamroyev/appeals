@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./contexts/AuthContext";
 import { TranslationProvider } from "./contexts/TranslationContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import Login from "./pages/Login";
 import Main from "./pages/Main";
 import "./index.css";
@@ -15,19 +16,21 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <TranslationProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <Main />
-              </RequireAuth>
-            }
-          />
-        </Routes>
-      </TranslationProvider>
+      <NotificationProvider>
+        <TranslationProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <Main />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </TranslationProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

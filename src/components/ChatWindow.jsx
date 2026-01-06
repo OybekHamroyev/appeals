@@ -1,5 +1,5 @@
 // Clean ChatWindow component
-import React, { useContext, useState, useRef } from "react";
+import React, { useContext, useState, useRef, useEffect } from "react";
 import { ChatContext } from "../contexts/ChatContext";
 import { AuthContext } from "../contexts/AuthContext";
 import { TranslationContext } from "../contexts/TranslationContext";
@@ -17,6 +17,8 @@ export default function ChatWindow() {
   const [files, setFiles] = useState([]);
   const fileRef = useRef();
 
+  const messagesRef = useRef(null);
+
   const convId =
     selectedStudent || (user?.role === "student" ? String(user.id) : null);
   if (!convId)
@@ -24,15 +26,41 @@ export default function ChatWindow() {
 
   const msgs = messages[convId] || [];
 
+  function scrollToBottom(smooth = false) {
+    const el = messagesRef.current;
+    if (!el) return;
+    try {
+      if (smooth && el.scrollTo)
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      else el.scrollTop = el.scrollHeight;
+    } catch (e) {}
+  }
+
+  // auto-scroll to bottom when messages change
+  useEffect(() => {
+    // wait for DOM paint
+    const el = messagesRef.current;
+    if (!el) return;
+    // use requestAnimationFrame to ensure layout updated
+    requestAnimationFrame(() => {
+      try {
+        el.scrollTop = el.scrollHeight;
+      } catch (e) {
+        // ignore
+      }
+    });
+  }, [msgs.length]);
+
   const isImage = (url) => /\.(jpe?g|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
   const isVideo = (url) => /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
 
   async function submit(e) {
     e.preventDefault();
-    if (!text.trim() && files.length === 0) return;
-    const content = text.trim();
+
     const senderRole =
       user?.role === "tutor" || user?.role === "teacher" ? "tutor" : "student";
+
+    const content = (text || "").trim();
 
     let recipient = null;
     if (user?.role === "tutor") recipient = selectedStudent || null;
@@ -52,11 +80,21 @@ export default function ChatWindow() {
       url: URL.createObjectURL(f),
     }));
 
+    if (!recipient) {
+      console.warn("no recipient for sendMessage", { user, selectedStudent });
+      return;
+    }
+
+    console.debug("ChatWindow: sending", { recipient, content, files });
     try {
-      await sendMessage(recipient, content, files);
+      // call sendMessage (optimistic UI inside)
+      const result = await sendMessage(recipient, content, files);
+      console.debug("ChatWindow: send result", result);
       setText("");
       setFiles([]);
       if (fileRef.current) fileRef.current.value = null;
+      // ensure scroll shows latest message
+      scrollToBottom(true);
     } catch (err) {
       console.error("Failed to send message", err);
       // keep optimistic UI (already added)
@@ -83,63 +121,115 @@ export default function ChatWindow() {
     user?.role === "student" ? storedUser?.tutor || storedUser : null;
   const isStudentView = user?.role === "student";
 
+  // header participants: ensure tutor on left and student on right
+  const headerTutor =
+    user?.role === "tutor"
+      ? {
+          id: user.id,
+          full_name: user?.fullName || user?.full_name,
+          photo: user?.photo,
+        }
+      : tutor
+      ? {
+          id: tutor.id || tutor.user_id,
+          full_name: tutor.full_name || tutor.fullName,
+          photo: tutor.photo,
+        }
+      : null;
+
+  const headerStudent =
+    user?.role === "tutor"
+      ? student
+        ? { id: student.id, full_name: student.fullName, photo: student.photo }
+        : null
+      : {
+          id: user.id,
+          full_name: user?.fullName || user?.full_name,
+          photo: user?.photo,
+        };
+
   return (
     <main className={`col chat ${isStudentView ? "student-centered" : ""}`}>
-      <div
-        className="chat-header"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div className="avatar">
-            {student ? (
-              student.photo ? (
-                <img
-                  src={student.photo}
-                  alt="avatar"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 999,
-                    objectFit: "cover",
-                  }}
-                />
+      {isStudentView && (
+        <div
+          className="chat-header"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          {/* left: tutor */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="avatar">
+              {headerTutor ? (
+                headerTutor.photo ? (
+                  <img
+                    src={headerTutor.photo}
+                    alt="tutor"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 999,
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <div className="avatar-initial">
+                    {(headerTutor.full_name || "T")[0]}
+                  </div>
+                )
               ) : (
-                (student.fullName || "")[0] || "?"
-              )
-            ) : (
-              "S"
-            )}
-          </div>
-          <div className="title">
-            {student ? student.fullName : t("chat.studentLabel")}
-          </div>
-        </div>
-        {tutor && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <img
-              src={tutor.photo}
-              alt="tutor"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 999,
-                objectFit: "cover",
-              }}
-            />
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontWeight: 700 }}>
-                {tutor.full_name || tutor.fullName || tutor.id}
-              </div>
+                <div className="avatar-initial">T</div>
+              )}
+            </div>
+            <div className="title">
+              {headerTutor
+                ? headerTutor.full_name || headerTutor.fullName
+                : t("chat.tutorLabel")}
             </div>
           </div>
-        )}
-      </div>
 
-      <div className="messages">
+          {/* right: student */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ textAlign: "right", marginRight: 8 }}>
+              <div style={{ fontWeight: 700 }}>
+                {headerStudent
+                  ? headerStudent.full_name || headerStudent.fullName
+                  : t("chat.studentLabel")}
+              </div>
+            </div>
+            <div className="avatar">
+              {headerStudent ? (
+                headerStudent.photo ? (
+                  <img
+                    src={headerStudent.photo}
+                    alt="student"
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 999,
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  <div className="avatar-initial">
+                    {
+                      (headerStudent.full_name ||
+                        headerStudent.fullName ||
+                        "S")[0]
+                    }
+                  </div>
+                )
+              ) : (
+                <div className="avatar-initial">S</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="messages" ref={messagesRef}>
         {msgs.map((m) => {
           const isServerMsg = !!m.sender;
           const senderObj = isServerMsg
@@ -204,27 +294,70 @@ export default function ChatWindow() {
                     {filesArr.map((f, i) => {
                       const url = f.file || f.url || f;
                       if (!url) return null;
+                      const name = String(url).split("/").pop();
+                      // render preview for images/videos but wrap in anchor for download/open
                       if (isImage(url))
                         return (
                           <div key={i} className="attachment">
-                            <img
-                              src={url}
-                              alt={`file-${i}`}
-                              className="thumb"
-                            />
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                            >
+                              <img
+                                src={url}
+                                alt={`file-${i}`}
+                                className="thumb"
+                              />
+                            </a>
+                            <div className="attachment-link">
+                              <a
+                                href={url}
+                                download
+                                target="_blank"
+                                rel="noreferrer noopener"
+                              >
+                                {name}
+                              </a>
+                            </div>
                           </div>
                         );
                       if (isVideo(url))
                         return (
                           <div key={i} className="attachment">
-                            <video src={url} className="thumb" />
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                            >
+                              <video src={url} className="thumb" controls />
+                            </a>
+                            <div className="attachment-link">
+                              <a
+                                href={url}
+                                download
+                                target="_blank"
+                                rel="noreferrer noopener"
+                              >
+                                {name}
+                              </a>
+                            </div>
                           </div>
                         );
-                      const name = String(url).split("/").pop();
                       return (
                         <div key={i} className="attachment">
                           <div className="doc">
-                            📄 <span className="doc-name">{name}</span>
+                            📄{" "}
+                            <span className="doc-name">
+                              <a
+                                href={url}
+                                download
+                                target="_blank"
+                                rel="noreferrer noopener"
+                              >
+                                {name}
+                              </a>
+                            </span>
                           </div>
                         </div>
                       );

@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { AuthContext } from "./AuthContext";
 import api from "../utils/api";
-import socket from "../utils/socket";
+import socket, { createConnection } from "../utils/socket";
 
 export const ChatContext = createContext(null);
 
@@ -76,9 +76,6 @@ export function ChatProvider({ children }) {
   // WebSocket integration: connect to backend Channels to receive broadcasted messages
   useEffect(() => {
     if (!user) {
-      try {
-        socket.close();
-      } catch {}
       return;
     }
 
@@ -90,9 +87,6 @@ export function ChatProvider({ children }) {
 
     if (!socketRecipient) {
       // nothing to connect to
-      try {
-        socket.close();
-      } catch {}
       return;
     }
 
@@ -100,13 +94,14 @@ export function ChatProvider({ children }) {
     const host = apiBase.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
     console.debug("[ChatContext] connecting socket", { host, socketRecipient });
-    socket.connect({ host, recipient: socketRecipient });
+    const chatPath = `/ws/chat/${socketRecipient}/`;
+    const conn = createConnection({ host, path: chatPath });
 
-    const offOpen = socket.on("open", () => console.debug("[socket] open"));
-    const offClose = socket.on("close", () => console.debug("[socket] close"));
-    const offErr = socket.on("error", (e) => console.warn("[socket] error", e));
+    const offOpen = conn.on("open", () => console.debug("[socket] open"));
+    const offClose = conn.on("close", () => console.debug("[socket] close"));
+    const offErr = conn.on("error", (e) => console.warn("[socket] error", e));
 
-    const offMsg = socket.on("message", (payload) => {
+    const offMsg = conn.on("message", (payload) => {
       try {
         const msg = payload || {};
         const msgId = msg.id || null;
@@ -157,7 +152,7 @@ export function ChatProvider({ children }) {
         offErr();
       } catch {}
       try {
-        socket.close();
+        conn.close();
       } catch {}
     };
   }, [user, selectedStudent]);
