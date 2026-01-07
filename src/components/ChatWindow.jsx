@@ -3,13 +3,25 @@ import React, { useContext, useState, useRef, useEffect } from "react";
 import { ChatContext } from "../contexts/ChatContext";
 import { AuthContext } from "../contexts/AuthContext";
 import { TranslationContext } from "../contexts/TranslationContext";
-import { FaPaperclip, FaPaperPlane } from "react-icons/fa";
+import {
+  FaPaperclip,
+  FaPaperPlane,
+  FaEllipsisV,
+  FaEdit,
+  FaTrash,
+} from "react-icons/fa";
 import Badge from "@mui/material/Badge";
-import api from "../utils/api";
 
 export default function ChatWindow() {
-  const { students, messages, selectedGroup, selectedStudent, sendMessage } =
-    useContext(ChatContext);
+  const {
+    students,
+    messages,
+    selectedGroup,
+    selectedStudent,
+    sendMessage,
+    editMessage,
+    deleteMessage,
+  } = useContext(ChatContext);
   const { user } = useContext(AuthContext);
   const { t } = useContext(TranslationContext);
 
@@ -21,10 +33,11 @@ export default function ChatWindow() {
 
   const convId =
     selectedStudent || (user?.role === "student" ? String(user.id) : null);
-  if (!convId)
-    return <main className="col chat empty">{t("chat.selectStudent")}</main>;
-
-  const msgs = messages[convId] || [];
+  const hasConv = !!convId;
+  const msgs = hasConv ? messages[convId] || [] : [];
+  const [editingId, setEditingId] = useState(null);
+  const [menuFor, setMenuFor] = useState(null);
+  const textInputRef = useRef(null);
 
   function scrollToBottom(smooth = false) {
     const el = messagesRef.current;
@@ -85,8 +98,24 @@ export default function ChatWindow() {
       return;
     }
 
-    console.debug("ChatWindow: sending", { recipient, content, files });
+    console.debug("ChatWindow: sending/editing", {
+      recipient,
+      content,
+      files,
+      editingId,
+    });
     try {
+      if (editingId) {
+        // call edit flow
+        const result = await editMessage(editingId, content);
+        console.debug("ChatWindow: edit result", result);
+        // clear editing state
+        setEditingId(null);
+        setText("");
+        // refresh handled by editMessage reconciliation
+        scrollToBottom(true);
+        return;
+      }
       // call sendMessage (optimistic UI inside)
       const result = await sendMessage(recipient, content, files);
       console.debug("ChatWindow: send result", result);
@@ -96,19 +125,22 @@ export default function ChatWindow() {
       // ensure scroll shows latest message
       scrollToBottom(true);
     } catch (err) {
-      console.error("Failed to send message", err);
+      console.error("Failed to send or edit message", err);
       // keep optimistic UI (already added)
       setText("");
       setFiles([]);
       if (fileRef.current) fileRef.current.value = null;
+      setEditingId(null);
     }
   }
 
   const student =
     user?.role === "tutor"
-      ? (students[selectedGroup] || []).find(
-          (s) => String(s.id) === String(selectedStudent)
-        )
+      ? Array.isArray(students && students[selectedGroup])
+        ? (students[selectedGroup] || []).find(
+            (s) => String(s.id) === String(selectedStudent)
+          )
+        : null
       : null;
   const storedUser = (() => {
     try {
@@ -149,7 +181,10 @@ export default function ChatWindow() {
         };
 
   return (
-    <main className={`col chat ${isStudentView ? "student-centered" : ""}`}>
+    <main
+      className={`col chat ${isStudentView ? "student-centered" : ""}`}
+      style={{ display: "flex", flexDirection: "column", height: "100%" }}
+    >
       {isStudentView && (
         <div
           className="chat-header"
@@ -229,7 +264,12 @@ export default function ChatWindow() {
         </div>
       )}
 
-      <div className="messages" ref={messagesRef}>
+      <div
+        className="messages"
+        ref={messagesRef}
+        style={{ flex: 1, overflowY: "auto" }}
+        onClick={() => setMenuFor(null)}
+      >
         {msgs.map((m) => {
           const isServerMsg = !!m.sender;
           const senderObj = isServerMsg
@@ -280,6 +320,51 @@ export default function ChatWindow() {
               )}
 
               <div className="bubble">
+                {/* vertical ellipsis menu for user's messages */}
+                {String(senderObj?.id) === String(user?.id) && (
+                  <div style={{ position: "absolute", right: 6, top: 6 }}>
+                    <FaEllipsisV
+                      className="msg-ellipsis-btn"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        setMenuFor(menuFor === m.id ? null : m.id);
+                      }}
+                      title="Options"
+                    />
+
+                    {menuFor === m.id && (
+                      <div
+                        className="msg-menu"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div
+                          className="msg-menu-item"
+                          onClick={() => {
+                            setEditingId(m.id);
+                            setText(m.content || m.text || "");
+                            setMenuFor(null);
+                            setTimeout(() => textInputRef.current?.focus(), 50);
+                          }}
+                        >
+                          <FaEdit style={{ marginRight: 8 }} />
+                        </div>
+                        <div
+                          className="msg-menu-item"
+                          onClick={async () => {
+                            try {
+                              await deleteMessage(m.id);
+                            } catch (e) {
+                              console.error(e);
+                            }
+                            setMenuFor(null);
+                          }}
+                        >
+                          <FaTrash style={{ marginRight: 8 }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="meta">
                   {senderObj?.full_name ||
                     senderObj?.fullName ||
@@ -389,7 +474,7 @@ export default function ChatWindow() {
         })}
       </div>
 
-      <form className="composer" onSubmit={submit}>
+      <form className="composer" onSubmit={submit} style={{ flexShrink: 0 }}>
         <label className="file-attach" title="Attach files">
           <Badge badgeContent={files.length} color="success">
             <FaPaperclip />
@@ -403,6 +488,7 @@ export default function ChatWindow() {
           />
         </label>
         <input
+          ref={textInputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={t("chat.placeholder")}

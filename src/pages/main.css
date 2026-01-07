@@ -62,6 +62,20 @@
 .attachment .doc-name{font-size:0.9rem}
 .attachment-meta{font-size:0.75rem;color:#64748b;margin-top:6px}
 
+.msg-edit-btn{position:absolute;right:6px;top:6px;background:transparent;border:none;color:#0b1220;cursor:pointer;font-size:14px;padding:4px}
+.bubble{position:relative;padding-right:28px}
+.bubble input{padding:8px;border:1px solid #cfe6ff;border-radius:6px}
+.bubble button{padding:6px 8px;border-radius:6px;border:none;background:#06b6d4;color:#fff}
+
+/* ellipsis menu for message actions */
+.msg-ellipsis-btn{background:transparent;border:none;font-size:18px;line-height:18px;padding:4px;cursor:pointer;color:#334155}
+.msg-menu{position:absolute;right:6px;top:32px;
+  background:#fff;border:1px solid rgba(2,6,23,0.06);
+  box-shadow:0 6px 18px rgba(2,6,23,0.08);border-radius:6px;overflow:hidden;
+  z-index:30}
+.msg-menu-item{padding:8px 10px;font-size:0.95rem;color:#071226;cursor:pointer}
+.msg-menu-item:hover{background:linear-gradient(90deg,#f0f9ff,#eef6ff)}
+
 .file-attach{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;background:#eef6ff;border:1px solid #e6eef8;cursor:pointer}
 
 /* subtle animations */
@@ -74,6 +88,13 @@
   .layout{grid-template-columns:1fr;grid-auto-rows:min-content;padding:12px}
   .groups,.students{order:0}
   .chat{order:2}
+}
+
+/* ensure composer stays visible on small screens */
+@media (max-width:900px){
+  .composer{position:sticky;bottom:12px;z-index:5;background:#fff;padding:10px;border-top:none}
+  .messages{padding-bottom:110px}
+  .chat.student-centered{padding:12px}
 }
 
 /* custom scrollbar styling (Webkit-based browsers) */
@@ -104,4 +125,19 @@
   .chat{order:2}
   .chat.student-centered{padding:12px}
   .bubble{max-width:100%}
+}
+
+/* very small screens: compact student list - show only avatar, put search on top */
+@media (max-width:680px){
+  .layout{padding:8px}
+  .students{padding:10px}
+  /* move search/select to top and full width */
+  .students > div:first-child{display:block;margin-bottom:8px}
+  .students ul{display:flex;flex-direction:column;gap:8px}
+  .students li{padding:6px;border-radius:8px}
+  .students li .meta{display:none}
+  .students .avatar{width:40px;height:40px}
+  /* make composer always visible */
+  .composer{position:sticky;bottom:8px;z-index:6;background:#fff;padding:8px}
+  .messages{padding-bottom:100px}
 }

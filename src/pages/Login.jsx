@@ -77,10 +77,16 @@ export default function Login() {
         navigate("/");
       } else {
         setError(t("login.authFailed"));
+        try {
+          alert(t("login.authFailed"));
+        } catch {}
       }
     } catch (err) {
       console.error(err);
       setError(t("login.authFailed"));
+      try {
+        alert(t("login.authFailed"));
+      } catch {}
     } finally {
       setCreating(false);
     }

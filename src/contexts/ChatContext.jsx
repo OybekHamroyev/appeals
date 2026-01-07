@@ -158,11 +158,29 @@ export function ChatProvider({ children }) {
   }, [user, selectedStudent]);
 
   function selectGroup(groupId) {
+    // when switching groups, clear the selected student and any messages for the old conversation
     setSelectedGroup(groupId);
     try {
       localStorage.setItem("chat.selectedGroup", String(groupId));
     } catch {}
+    // clear selected student and reset messages for the chat pane
     setSelectedStudent(null);
+    setMessages((prev) => {
+      // remove keys for students of previous group to avoid stale display
+      if (!prev) return {};
+      const copy = { ...prev };
+      // if groupId exists and has students, keep messages only for this group's students; otherwise clear all
+      try {
+        const keepIds = (students[groupId] || []).map((s) => String(s.id));
+        Object.keys(copy).forEach((k) => {
+          if (!keepIds.includes(String(k))) delete copy[k];
+        });
+      } catch (e) {
+        // fallback: clear all messages
+        return {};
+      }
+      return copy;
+    });
   }
 
   function selectStudent(studentId) {
@@ -271,6 +289,56 @@ export function ChatProvider({ children }) {
     }
   }
 
+  // editMessage: update message content on server and reconcile locally
+  async function editMessage(messageId, newContent) {
+    if (!messageId) throw new Error("messageId required");
+    try {
+      // use PATCH to update content
+      const res = await api.patch(`/api/messages/edit/${messageId}/`, {
+        content: newContent || "",
+      });
+      const serverMsg = res.data;
+      // reconcile locally: replace message with same id
+      setMessages((prev) => {
+        if (!prev) return prev;
+        const copy = {};
+        Object.keys(prev).forEach((k) => {
+          copy[k] = (prev[k] || []).map((m) =>
+            String(m.id) === String(serverMsg.id) ? serverMsg : m
+          );
+        });
+        return copy;
+      });
+      return serverMsg;
+    } catch (err) {
+      console.error("editMessage failed", err);
+      throw err;
+    }
+  }
+
+  // deleteMessage: remove message on server and locally
+  async function deleteMessage(messageId) {
+    if (!messageId) throw new Error("messageId required");
+    try {
+      await api.delete(`/api/messages/delete/${messageId}/`);
+      // remove from local messages
+      setMessages((prev) => {
+        if (!prev) return prev;
+        const copy = {};
+        Object.keys(prev).forEach((k) => {
+          copy[k] = (prev[k] || []).filter(
+            (m) => String(m.id) !== String(messageId)
+          );
+        });
+        return copy;
+      });
+      return true;
+    } catch (err) {
+      console.error("deleteMessage failed", err);
+      throw err;
+    }
+  }
+
   return (
     <ChatContext.Provider
       value={{
@@ -282,6 +350,8 @@ export function ChatProvider({ children }) {
         selectGroup,
         selectStudent,
         sendMessage,
+        editMessage,
+        deleteMessage,
       }}
     >
       {children}

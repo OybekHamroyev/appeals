@@ -14,7 +14,6 @@ import Settings from "@mui/icons-material/Settings";
 import Logout from "@mui/icons-material/Logout";
 import logo from "../assets/logo.jpg";
 import Badge from "@mui/material/Badge";
-import NotificationsIcon from "@mui/icons-material/Notifications";
 import { NotificationContext } from "../contexts/NotificationContext";
 
 export default function Header() {
@@ -26,13 +25,8 @@ export default function Header() {
   const handleOpen = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  const [notifAnchor, setNotifAnchor] = useState(null);
   const { notifications, unreadCount, markAsRead, clearAll } =
     useContext(NotificationContext);
-
-  const openNotif = Boolean(notifAnchor);
-  const handleOpenNotif = (e) => setNotifAnchor(e.currentTarget);
-  const handleCloseNotif = () => setNotifAnchor(null);
 
   return (
     <header className="app-header">
@@ -53,76 +47,32 @@ export default function Header() {
           setLang={setLang}
         />
 
-        <Tooltip title="Notifications">
-          <IconButton onClick={handleOpenNotif} sx={{ ml: 1 }} color="inherit">
-            <Badge badgeContent={unreadCount} color="success">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-        </Tooltip>
-        <Menu
-          anchorEl={notifAnchor}
-          id="notif-menu"
-          open={openNotif}
-          onClose={handleCloseNotif}
-          PaperProps={{ elevation: 4 }}
-          transformOrigin={{ horizontal: "right", vertical: "top" }}
-          anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-        >
-          <MenuItem disabled>Notifications ({unreadCount} unread)</MenuItem>
-          <Divider />
-          {notifications.length === 0 && (
-            <MenuItem disabled>No notifications</MenuItem>
-          )}
-          {notifications.map((n) => (
-            <MenuItem
-              key={n.id}
-              onClick={async () => {
-                await markAsRead(n.id);
-                handleCloseNotif();
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ fontWeight: n.is_read ? 400 : 700 }}>
-                  {n.payload?.title || JSON.stringify(n.payload).slice(0, 60)}
-                </div>
-                <div style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                  {new Date(n.created_at).toLocaleString()}
-                </div>
-              </div>
-            </MenuItem>
-          ))}
-          {notifications.length > 0 && (
-            <>
-              <Divider />
-              <MenuItem
-                onClick={() => {
-                  clearAll();
-                  handleCloseNotif();
-                }}
-              >
-                Clear all
-              </MenuItem>
-            </>
-          )}
-        </Menu>
+        {/* Notification UI removed from header: unread count shown on avatar badge instead */}
 
-        <Tooltip title="Account settings">
-          <IconButton
-            onClick={handleOpen}
-            size="small"
-            sx={{ ml: 2 }}
-            aria-controls={open ? "account-menu" : undefined}
-            aria-haspopup="true"
-            aria-expanded={open ? "true" : undefined}
-          >
-            <Avatar
-              src={user?.photo || undefined}
-              sx={{ width: 40, height: 40 }}
+        <Tooltip
+          title={
+            unreadCount
+              ? `${unreadCount} unread notifications`
+              : "Account settings"
+          }
+        >
+          <Badge badgeContent={unreadCount} color="error">
+            <IconButton
+              onClick={handleOpen}
+              size="small"
+              sx={{ ml: 2 }}
+              aria-controls={open ? "account-menu" : undefined}
+              aria-haspopup="true"
+              aria-expanded={open ? "true" : undefined}
             >
-              {!user?.photo && (user?.fullName ? user.fullName[0] : "U")}
-            </Avatar>
-          </IconButton>
+              <Avatar
+                src={user?.photo || undefined}
+                sx={{ width: 40, height: 40 }}
+              >
+                {!user?.photo && (user?.fullName ? user.fullName[0] : "U")}
+              </Avatar>
+            </IconButton>
+          </Badge>
         </Tooltip>
         <Menu
           anchorEl={anchorEl}

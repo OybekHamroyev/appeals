@@ -22,6 +22,7 @@ export function NotificationProvider({ children }) {
   });
 
   const connectedRef = useRef(false);
+  const connRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem("notifications", JSON.stringify(notifications));
@@ -40,7 +41,16 @@ export function NotificationProvider({ children }) {
       .replace(/\/$/, "");
     // connect to notify ws; use explicit notify path so we don't interfere with chat sockets
     const notifyPath = "/ws/notify/";
+    // avoid creating duplicate connection
+    if (
+      connRef.current &&
+      connRef.current.isConnected &&
+      connRef.current.isConnected()
+    ) {
+      console.debug("[notify] already connected");
+    }
     const conn = createConnection({ host, path: notifyPath });
+    connRef.current = conn;
     // mark that we created/connected
     connectedRef.current = true;
 
@@ -104,6 +114,18 @@ export function NotificationProvider({ children }) {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
+  function getUnreadFor(studentId) {
+    if (!studentId) return 0;
+    const sid = String(studentId);
+    return notifications.reduce((acc, n) => {
+      const tgt =
+        n.payload?.student_id || n.payload?.user_id || n.user?.id || null;
+      if (!tgt) return acc;
+      if (String(tgt) === sid && !n.is_read) return acc + 1;
+      return acc;
+    }, 0);
+  }
+
   return (
     <NotificationContext.Provider
       value={{
@@ -112,6 +134,7 @@ export function NotificationProvider({ children }) {
         markAsRead,
         clearAll,
         unreadCount,
+        getUnreadFor,
       }}
     >
       {children}
