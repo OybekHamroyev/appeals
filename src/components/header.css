@@ -8,7 +8,10 @@
 .site-title{margin:0;font-size:1.1rem;color:#071226; 
 	}
 .app-header .user .avatar{width:40px;height:40px;border-radius:999px;background:#e6f6ff;display:flex;align-items:center;justify-content:center;color:#0b1220}
-.lang-select{border:1px solid #e6eef8;padding:6px;border-radius:6px;background:#f8fafc;color:#071226;flex:0 0 auto}
+.lang-select{border:1px solid #e6eef8;padding:6px;border-radius:6px;background:#f8fafc;color:#071226;flex:0 0 auto;font-size:1rem}
+
+/* provide explicit right-area spacing so we can tune it per-breakpoint */
+.app-header .right{display:flex;align-items:center;gap:16px}
 
 @media (max-width:900px){
 	.app-header{padding:12px 16px}
@@ -17,6 +20,20 @@
 @media (max-width:400px){
 	.app-header .MuiAvatar-root, .app-header .avatar{width:32px;height:32px}
 	.app-header .MuiBadge-badge{transform:translate(8px,-8px) scale(0.8)}
+}
+
+/* adjustments specifically for small-medium screens (<=680) */
+@media (max-width:680px){
+	.app-header{padding:10px 18px}
+	.app-header .right{gap:8px}
+	.lang-select{font-size:0.92rem;padding:5px}
+}
+
+/* adjustments for very small screens (<=400) */
+@media (max-width:400px){
+	.app-header{padding:8px 12px}
+	.app-header .right{gap:8px}
+	.lang-select{font-size:0.82rem;padding:4px}
 }
 
 /* When chat is student-centered, keep header compact: only show main avatar and name */

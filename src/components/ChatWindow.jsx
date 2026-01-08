@@ -32,6 +32,9 @@ export default function ChatWindow() {
   const fileRef = useRef();
 
   const messagesRef = useRef(null);
+  const prevIdsRef = useRef(new Set());
+  const [enteringIds, setEnteringIds] = useState([]);
+  const [enteredIds, setEnteredIds] = useState([]);
 
   const convId =
     selectedStudent || (user?.role === "student" ? String(user.id) : null);
@@ -53,13 +56,34 @@ export default function ChatWindow() {
 
   // auto-scroll to bottom when messages change
   useEffect(() => {
-    // wait for DOM paint
+    // detect newly added message ids for animation
+    const ids = (msgs || []).map((m) => String(m.id));
+    const prev = prevIdsRef.current || new Set();
+    const added = ids.filter((id) => !prev.has(id));
+    if (added.length) {
+      // mark as entering
+      setEnteringIds((s) => [...s, ...added]);
+      // after paint, mark as entered to trigger transition to final state
+      requestAnimationFrame(() => {
+        setEnteredIds((s) => [...s, ...added]);
+        // cleanup after animation duration
+        setTimeout(() => {
+          setEnteringIds((s) => s.filter((x) => !added.includes(x)));
+          setEnteredIds((s) => s.filter((x) => !added.includes(x)));
+        }, 420);
+      });
+    }
+    // update prev ids
+    prevIdsRef.current = new Set(ids);
+
+    // wait for DOM paint then scroll smoothly
     const el = messagesRef.current;
     if (!el) return;
-    // use requestAnimationFrame to ensure layout updated
     requestAnimationFrame(() => {
       try {
-        el.scrollTop = el.scrollHeight;
+        if (el.scrollTo)
+          el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+        else el.scrollTop = el.scrollHeight;
       } catch (e) {
         // ignore
       }
@@ -274,6 +298,9 @@ export default function ChatWindow() {
       >
         {msgs.map((m) => {
           const isServerMsg = !!m.sender;
+          const mid = String(m.id);
+          const isEntering = enteringIds.includes(mid);
+          const isEntered = enteredIds.includes(mid);
           const senderObj = isServerMsg
             ? m.sender
             : m.from === "tutor"
@@ -300,7 +327,9 @@ export default function ChatWindow() {
           return (
             <div
               key={m.id}
-              className={`message ${isFromTutor ? "me" : "them"}`}
+              className={`message ${isFromTutor ? "me" : "them"} ${
+                isEntering ? "enter" : ""
+              } ${isEntered ? "enter-active" : ""}`}
             >
               {!isFromTutor && (
                 <div className="msg-avatar">
