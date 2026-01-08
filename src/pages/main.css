@@ -41,6 +41,8 @@
 .avatar{width:44px;height:44px;border-radius:999px;background:#e6f6ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#0b1220}
 .student .meta{font-size:0.95rem}
 .chat{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+/* ensure chat column is positioned for composer sticky to work */
+.layout .chat{position:relative;display:flex;flex-direction:column}
 .chat.empty{display:flex;align-items:center;justify-content:center;color:#94a3b8}
 .chat-header{display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid rgba(2,6,23,0.04)}
 .messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0}
@@ -51,6 +53,8 @@
 .bubble{max-width:78%;background:#f8fffa;padding:10px;border-radius:10px;border:1px solid rgba(11,17,34,0.03);word-break:break-word}
 .message .meta{font-size:0.75rem;color:#64748b;margin-bottom:6px}
 .composer{display:flex;gap:8px;padding:10px;border-top:1px solid rgba(2,6,23,0.04);align-items:center;flex:0 0 auto}
+/* make composer sticky and visible across layouts */
+.composer{position:sticky;bottom:12px;z-index:20;background:#fff}
 .composer input{flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef8;background:#f0f9ff;color:#071226}
 .composer input[type="file"]{flex:0 0 200px}
 .composer button{padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,#14a44d,#0a8b2b);border:none;color:#fff}
@@ -68,8 +72,9 @@
 .bubble button{padding:6px 8px;border-radius:6px;border:none;background:#06b6d4;color:#fff}
 
 /* ellipsis menu for message actions */
+.msg-ellipsis-wrap{position: absolute;right: 1px;top:1px}
 .msg-ellipsis-btn{background:transparent;border:none;font-size:18px;line-height:18px;padding:4px;cursor:pointer;color:#334155}
-.msg-menu{position:absolute;right:6px;top:32px;
+.msg-menu{position:absolute;right:6px;top:20px;
   background:#fff;border:1px solid rgba(2,6,23,0.06);
   box-shadow:0 6px 18px rgba(2,6,23,0.08);border-radius:6px;overflow:hidden;
   z-index:30}
@@ -85,15 +90,78 @@
 .messages .message.enter-active{opacity:1;transform:translateY(0)}
 
 @media (max-width:900px){
-  .layout{grid-template-columns:1fr;grid-auto-rows:min-content;padding:12px}
+  .layout{grid-template-columns:1fr;grid-auto-rows:1fr;padding:12px}
   .groups,.students{order:0}
   .chat{order:2}
 }
+  /* chat header responsiveness at 680 */
+  .chat-header .title{font-size:0.8rem}
+  .chat-header{padding:8px 6px;gap:8px}
+  .chat-header .avatar{width:32px;height:32px}
+
+/* adjustments specifically at 680px */
+@media (max-width:680px){
+  /* header logo smaller */
+  .app-header .logo img{width:44px;height:44px}
+  /* composer send button smaller */
+  .composer button{padding:6px 10px;font-size:0.9rem}
+  .composer input{padding:8px}
+  /* chat column adjustments */
+  .col.chat{padding:8px}
+  .messages{gap:8px}
+  .message{gap:6px}
+  .bubble{padding:8px;border-radius:8px}
+  /* ellipsis icon/menu smaller */
+  .msg-ellipsis-btn{font-size:16px}
+  /* move ellipsis slightly inward at 680 */
+  .msg-ellipsis-wrap{position:absolute;right:0px;top:0px}
+  .msg-menu{min-width:90px}
+  .msg-menu-item{font-size:0.9rem;padding:6px 8px}
+  .msg-menu-item svg{width:14px;height:14px}
+  /* timestamp smaller */
+  .msg-ts{font-size:0.65rem}
+  /* hide composer button text to save space on small screens */
+  .composer .btn-text{display:none}
+  .composer button{padding:6px;width:44px;height:36px;display:flex;align-items:center;justify-content:center}
+  .composer button svg{width:18px;height:18px}
+}
+
+/* adjustments specifically at 400px */
+@media (max-width:400px){
+  .app-header .logo img{width:36px;height:36px}
+  .composer button{padding:6px 8px;font-size:0.85rem}
+  .composer input{padding:6px}
+  .col.chat{padding:6px}
+  .messages{gap:6px}
+  .message{gap:4px}
+  .bubble{padding:6px;border-radius:6px}
+  .msg-ellipsis-btn{font-size:14px}
+  /* tighten ellipsis for 400 */
+  .msg-ellipsis-wrap{position: absolute;right: 0px;top:0px}
+  .msg-menu{min-width:80px}
+  .msg-menu-item{font-size:0.85rem;padding:6px}
+  .msg-menu-item svg{width:12px;height:12px}
+  .msg-ts{font-size:0.6rem}
+  .composer .btn-text{display:none}
+  .composer button{padding:6px;width:40px;height:32px}
+  .composer button svg{width:16px;height:16px}
+}
+
+/* message timestamp positioning: put timestamp below content in normal flow */
+.msg-ts{display:block;text-align:right;margin-top:8px;color:#64748b;font-size:0.75rem}
+.msg-loading{position:absolute;left:6px;bottom:6px;font-size:10px;color:#60a5fa}
+
+.composer button[disabled]{opacity:0.6;cursor:default}
 
 /* ensure composer stays visible on small screens */
 @media (max-width:900px){
-  .composer{position:sticky;bottom:12px;z-index:5;background:#fff;padding:10px;border-top:none}
-  .messages{padding-bottom:110px}
+  /* use fixed composer so it remains visible when layout collapses */
+  .composer{position:fixed;left:12px;right:12px;bottom:12px;z-index:140;background:#fff;padding:10px;border-radius:10px;box-shadow:0 6px 20px rgba(2,6,23,0.08)}
+  .messages{padding-bottom:160px}
+  /* chat header responsiveness at 400 */
+  .chat-header .title{font-size:0.88rem}
+  .chat-header{padding:6px 4px;gap:6px}
+  .chat-header .avatar{width:28px;height:28px}
   .chat.student-centered{padding:12px}
 }
 
@@ -111,7 +179,9 @@
 
 /* ensure columns don't cause horizontal scroll on small screens */
 .layout, .col{box-sizing:border-box}
-.groups ul, .students ul {max-width:100%;overflow:hidden}
+.groups ul {max-width:100%;overflow:hidden}
+.students{overflow-y:auto}
+.students ul {max-width:100%;overflow:hidden}
 
 /* force avatar on left for all messages visually by ordering bubble after avatar */
 .message.me .msg-avatar{order:1;margin-left:8px}
@@ -120,7 +190,7 @@
 .message .bubble{order:1}
 
 @media (max-width:900px){
-  .layout{grid-template-columns:1fr;grid-auto-rows:min-content;padding:12px}
+  .layout{grid-template-columns:1fr;grid-auto-rows:1fr;padding:12px}
   .groups,.students{order:0}
   .chat{order:2}
   .chat.student-centered{padding:12px}
@@ -129,15 +199,46 @@
 
 /* very small screens: compact student list - show only avatar, put search on top */
 @media (max-width:680px){
+  /* use a narrow avatar-only students column and place chat to the right */
   .layout{padding:8px}
-  .students{padding:10px}
-  /* move search/select to top and full width */
-  .students > div:first-child{display:block;margin-bottom:8px}
+  .layout.two-col{grid-template-columns:60px 1fr;gap:8px}
+  .students{padding:6px}
+  /* hide in-column select and show mobile top select */
+  .students > div:first-child{display:none}
+  .mobile-student-search{display:block;padding:8px 12px}
+  .mobile-student-search .css-1wy0on6{min-width:100%}
+  /* avatar-only list */
   .students ul{display:flex;flex-direction:column;gap:8px}
-  .students li{padding:6px;border-radius:8px}
+  .students li{padding:6px;border-radius:8px;justify-content:center}
   .students li .meta{display:none}
   .students .avatar{width:40px;height:40px}
-  /* make composer always visible */
-  .composer{position:sticky;bottom:8px;z-index:6;background:#fff;padding:8px}
-  .messages{padding-bottom:100px}
+  /* make composer fixed so it's always visible and doesn't depend on container overflow */
+  .composer{position:fixed;left:8px;right:8px;bottom:8px;z-index:160;background:#fff;padding:8px;border-radius:8px;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+  .messages{padding-bottom:180px}
+  /* make students and messages scrollable vertically */
+  .students{overflow-y:auto;max-height:calc(100vh - 140px)}
+  .students ul{max-height:calc(100vh - 180px);overflow-y:auto}
+  .messages{overflow-y:auto}
+}
+
+/* shrink group-tabs and site title on small screens */
+@media (max-width:512px){
+  .group-tabs .tab{font-size:0.85rem;padding:6px 10px}
+  .site-title{font-size:1rem}
+}
+
+@media (max-width:400px){
+  .group-tabs .tab{font-size:0.75rem;padding:5px 8px}
+  .site-title{font-size:0.9rem}
+  /* ensure composer spacing is enough on very small screens */
+  .composer{left:8px;right:8px;bottom:8px;padding:8px}
+}
+
+/* default hide mobile student search container, shown only on very small screens */
+.mobile-student-search{display:none}
+
+/* keep composer visible on all screen sizes including >=901 when tutor view */
+@media (min-width:901px){
+  .composer{position:sticky;bottom:12px;z-index:5;background:#fff;padding:10px;border-top:none}
+  .messages{padding-bottom:110px}
 }

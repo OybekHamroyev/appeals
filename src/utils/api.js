@@ -1,10 +1,9 @@
 import axios from "axios";
 const process = import.meta.env;
 const api = axios.create({
-  baseURL: process.PYTHON_API_URL || "http://172.20.120.103:8000",
+  baseURL: process.VITE_PYTHON_API_URL,
   headers: { "Content-Type": "application/json" },
 });
-
 // request interceptor - attach token if present
 api.interceptors.request.use(
   (config) => {

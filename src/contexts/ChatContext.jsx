@@ -10,6 +10,7 @@ export function ChatProvider({ children }) {
   const [groups, setGroups] = useState([]);
   const [students, setStudents] = useState({});
   const [messages, setMessages] = useState({});
+  const [sendingIds, setSendingIds] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(() => {
     try {
@@ -90,7 +91,7 @@ export function ChatProvider({ children }) {
       return;
     }
 
-    const apiBase = api.defaults?.baseURL || "http://172.20.120.103:8000";
+    const apiBase = api.defaults?.baseURL;
     const host = apiBase.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
     console.debug("[ChatContext] connecting socket", { host, socketRecipient });
@@ -104,6 +105,47 @@ export function ChatProvider({ children }) {
     const offMsg = conn.on("message", (payload) => {
       try {
         const msg = payload || {};
+
+        // handle explicit edit/delete events from server
+        const eventType = msg.type || msg.action || null;
+        if (eventType === "delete" || eventType === "removed") {
+          const messageId = msg.id || msg.message_id || null;
+          if (!messageId) return;
+          // remove from all conversations where present
+          setMessages((prev) => {
+            if (!prev) return prev;
+            const copy = {};
+            Object.keys(prev).forEach((k) => {
+              copy[k] = (prev[k] || []).filter(
+                (m) => String(m.id) !== String(messageId)
+              );
+            });
+            return copy;
+          });
+          return;
+        }
+
+        if (eventType === "edit" || eventType === "updated") {
+          const serverMsg = msg.payload || msg.message || msg;
+          const messageId = serverMsg.id || serverMsg.message_id || null;
+          if (!messageId) return;
+          // reconcile edit across all convs
+          setMessages((prev) => {
+            if (!prev) return prev;
+            const copy = {};
+            Object.keys(prev).forEach((k) => {
+              copy[k] = (prev[k] || []).map((m) =>
+                String(m.id) === String(messageId)
+                  ? { ...m, ...(serverMsg || {}) }
+                  : m
+              );
+            });
+            return copy;
+          });
+          return;
+        }
+
+        // otherwise treat as a new message broadcast
         const msgId = msg.id || null;
         const normalized = {
           id: msgId || Date.now(),
@@ -118,7 +160,19 @@ export function ChatProvider({ children }) {
           const key = String(user.id);
           setMessages((prev) => {
             const list = prev[key] ? [...prev[key]] : [];
-            if (msgId && list.find((m) => m.id === msgId)) return prev;
+            // if server message id already present, do nothing
+            if (msgId && list.find((m) => String(m.id) === String(msgId)))
+              return prev;
+            // if there's an optimistic temp that matches content, replace it
+            const tempIdx = list.findIndex(
+              (m) =>
+                m.optimistic && String(m.content) === String(normalized.content)
+            );
+            if (tempIdx > -1) {
+              const copyList = [...list];
+              copyList.splice(tempIdx, 1, normalized);
+              return { ...prev, [key]: copyList };
+            }
             return { ...prev, [key]: [...list, normalized] };
           });
         } else {
@@ -129,7 +183,17 @@ export function ChatProvider({ children }) {
           const key = String(otherId);
           setMessages((prev) => {
             const list = prev[key] ? [...prev[key]] : [];
-            if (msgId && list.find((m) => m.id === msgId)) return prev;
+            if (msgId && list.find((m) => String(m.id) === String(msgId)))
+              return prev;
+            const tempIdx = list.findIndex(
+              (m) =>
+                m.optimistic && String(m.content) === String(normalized.content)
+            );
+            if (tempIdx > -1) {
+              const copyList = [...list];
+              copyList.splice(tempIdx, 1, normalized);
+              return { ...prev, [key]: copyList };
+            }
             return { ...prev, [key]: [...list, normalized] };
           });
         }
@@ -251,40 +315,84 @@ export function ChatProvider({ children }) {
         url: URL.createObjectURL(f),
       })),
       optimistic: true,
+      sending: true,
+      client_id: tempId,
     };
     setMessages((prev) => {
       const list = prev[convKey] ? [...prev[convKey]] : [];
       return { ...prev, [convKey]: [...list, tempMsg] };
     });
+    setSendingIds((s) => [...s, tempId]);
 
     // send to server
     const fd = new FormData();
     fd.append("recipient", String(recipientId));
     fd.append("content", content || "");
+    // include our client correlation id so server can echo it back when broadcasting
+    fd.append("client_id", tempId);
     (files || []).forEach((f) => fd.append("files", f));
 
     try {
       const res = await api.post("/api/send-message/", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      const serverMsg = res.data;
+      const serverMsg = res.data || {};
 
-      // reconcile: replace temp message or append server message if not present
+      // reconcile: replace temp message with server message or append if not present
       setMessages((prev) => {
         const list = prev[convKey] ? [...prev[convKey]] : [];
-        // remove any temp messages with same content/timestamp heuristic
-        const cleaned = list.filter(
-          (m) => String(m.id).indexOf("temp_") === -1
+        // try to match by echoed client_id first
+        const byClientIdx = serverMsg.client_id
+          ? list.findIndex(
+              (m) =>
+                m.client_id &&
+                String(m.client_id) === String(serverMsg.client_id)
+            )
+          : -1;
+        if (byClientIdx > -1) {
+          const copy = [...list];
+          copy.splice(byClientIdx, 1, serverMsg);
+          return { ...prev, [convKey]: copy };
+        }
+        // fallback: match temp id or optimistic content
+        const idx = list.findIndex(
+          (m) =>
+            (String(m.id).indexOf("temp_") === 0 &&
+              m.optimistic &&
+              String(m.content) === String(serverMsg.content)) ||
+            (m.client_id &&
+              serverMsg.client_id &&
+              String(m.client_id) === String(serverMsg.client_id))
         );
-        if (!cleaned.find((m) => m.id === serverMsg.id))
-          cleaned.push(serverMsg);
-        return { ...prev, [convKey]: cleaned };
+        if (idx > -1) {
+          const copy = [...list];
+          copy.splice(idx, 1, serverMsg);
+          return { ...prev, [convKey]: copy };
+        }
+        // if server message not present, append
+        if (!list.find((m) => String(m.id) === String(serverMsg.id))) {
+          return { ...prev, [convKey]: [...list, serverMsg] };
+        }
+        return prev;
       });
+      setSendingIds((s) => s.filter((id) => id !== tempId));
 
       return serverMsg;
     } catch (err) {
       console.error("sendMessage failed", err);
       // leave optimistic message (could mark as failed)
+      // mark sending failed: remove sending flag
+      setMessages((prev) => {
+        const list = prev[convKey] ? [...prev[convKey]] : [];
+        const idx = list.findIndex((m) => String(m.id) === String(tempId));
+        if (idx > -1) {
+          const copy = [...list];
+          copy[idx] = { ...copy[idx], sending: false, failed: true };
+          return { ...prev, [convKey]: copy };
+        }
+        return prev;
+      });
+      setSendingIds((s) => s.filter((id) => id !== tempId));
       throw err;
     }
   }
@@ -339,6 +447,23 @@ export function ChatProvider({ children }) {
     }
   }
 
+  // removeLocalMessage: remove a locally-created optimistic/temp message without calling server
+  function removeLocalMessage(messageId) {
+    if (!messageId) return;
+    setMessages((prev) => {
+      if (!prev) return prev;
+      const copy = {};
+      Object.keys(prev).forEach((k) => {
+        copy[k] = (prev[k] || []).filter(
+          (m) => String(m.id) !== String(messageId)
+        );
+      });
+      return copy;
+    });
+    // also clear from sendingIds if present
+    setSendingIds((s) => s.filter((id) => String(id) !== String(messageId)));
+  }
+
   return (
     <ChatContext.Provider
       value={{
@@ -352,6 +477,8 @@ export function ChatProvider({ children }) {
         sendMessage,
         editMessage,
         deleteMessage,
+        removeLocalMessage,
+        sendingIds,
       }}
     >
       {children}

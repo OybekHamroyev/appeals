@@ -21,6 +21,8 @@ export default function ChatWindow() {
     sendMessage,
     editMessage,
     deleteMessage,
+    removeLocalMessage,
+    sendingIds,
   } = useContext(ChatContext);
   const { user } = useContext(AuthContext);
   const { t } = useContext(TranslationContext);
@@ -322,9 +324,8 @@ export default function ChatWindow() {
               <div className="bubble">
                 {/* vertical ellipsis menu for user's messages */}
                 {String(senderObj?.id) === String(user?.id) && (
-                  <div style={{ position: "absolute", right: 6, top: 6 }}>
+                  <div className="msg-ellipsis-wrap">
                     <FaEllipsisV
-                      className="msg-ellipsis-btn"
                       onClick={(ev) => {
                         ev.stopPropagation();
                         setMenuFor(menuFor === m.id ? null : m.id);
@@ -337,9 +338,13 @@ export default function ChatWindow() {
                         className="msg-menu"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        {/* disable edit/delete for optimistic local messages (no server id yet) */}
                         <div
-                          className="msg-menu-item"
+                          className={`msg-menu-item ${
+                            m.optimistic ? "disabled" : ""
+                          }`}
                           onClick={() => {
+                            if (m.optimistic) return;
                             setEditingId(m.id);
                             setText(m.content || m.text || "");
                             setMenuFor(null);
@@ -349,10 +354,17 @@ export default function ChatWindow() {
                           <FaEdit style={{ marginRight: 8 }} />
                         </div>
                         <div
-                          className="msg-menu-item"
+                          className={`msg-menu-item ${
+                            m.optimistic ? "disabled" : ""
+                          }`}
                           onClick={async () => {
                             try {
-                              await deleteMessage(m.id);
+                              if (m.optimistic) {
+                                // remove local optimistic message without calling server
+                                removeLocalMessage(m.id);
+                              } else {
+                                await deleteMessage(m.id);
+                              }
                             } catch (e) {
                               console.error(e);
                             }
@@ -369,8 +381,7 @@ export default function ChatWindow() {
                   {senderObj?.full_name ||
                     senderObj?.fullName ||
                     (isFromTutor ? user?.fullName : student?.fullName) ||
-                    t("chat.studentLabel")}{" "}
-                  • {msgTime}
+                    t("chat.studentLabel")}
                 </div>
                 <div className="text">{msgText}</div>
 
@@ -449,6 +460,14 @@ export default function ChatWindow() {
                     })}
                   </div>
                 )}
+                {/* timestamp placed bottom-right inside the bubble */}
+                <div className="msg-ts">{msgTime}</div>
+                {/* show small loader for optimistic sending messages */}
+                {m.sending && (
+                  <div className="msg-loading" title="Sending...">
+                    ●
+                  </div>
+                )}
               </div>
 
               {isFromTutor && (
@@ -493,8 +512,8 @@ export default function ChatWindow() {
           onChange={(e) => setText(e.target.value)}
           placeholder={t("chat.placeholder")}
         />
-        <button type="submit">
-          <FaPaperPlane /> {t("chat.send")}
+        <button type="submit" disabled={(sendingIds || []).length > 0}>
+          <FaPaperPlane /> <span className="btn-text">{t("chat.send")}</span>
         </button>
       </form>
     </main>

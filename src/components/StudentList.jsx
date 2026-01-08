@@ -35,7 +35,7 @@ export default function StudentList() {
             className={String(s.id) === String(selectedStudent) ? "active" : ""}
             onClick={() => selectStudent(s.id)}
           >
-            <div className="avatar">
+            <div className="avatar" title={s.fullName || ""}>
               <Badge
                 badgeContent={getUnreadFor(s.id) || 0}
                 color="error"
