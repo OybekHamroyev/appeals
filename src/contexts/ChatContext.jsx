@@ -107,9 +107,19 @@ export function ChatProvider({ children }) {
         const msg = payload || {};
 
         // handle explicit edit/delete events from server
-        const eventType = msg.type || msg.action || null;
-        if (eventType === "delete" || eventType === "removed") {
-          const messageId = msg.id || msg.message_id || null;
+        const eventType = (msg.type || msg.action || "").toString();
+        // backend uses 'message_deleted' and 'message_edited' inside the 'message' payload
+        if (
+          eventType.toLowerCase().includes("deleted") ||
+          eventType === "delete" ||
+          eventType === "removed"
+        ) {
+          const messageId =
+            msg.message_id ||
+            msg.id ||
+            (msg.message && msg.message.message_id) ||
+            (msg.message && msg.message.id) ||
+            null;
           if (!messageId) return;
           // remove from all conversations where present
           setMessages((prev) => {
@@ -125,9 +135,16 @@ export function ChatProvider({ children }) {
           return;
         }
 
-        if (eventType === "edit" || eventType === "updated") {
-          const serverMsg = msg.payload || msg.message || msg;
-          const messageId = serverMsg.id || serverMsg.message_id || null;
+        if (
+          eventType.toLowerCase().includes("edit") ||
+          eventType === "edit" ||
+          eventType === "updated"
+        ) {
+          const serverMsg = msg.message || msg.payload || msg;
+          const messageObj =
+            serverMsg && serverMsg.message ? serverMsg.message : serverMsg;
+          const messageId =
+            (messageObj && (messageObj.id || messageObj.message_id)) || null;
           if (!messageId) return;
           // reconcile edit across all convs
           setMessages((prev) => {
@@ -136,7 +153,7 @@ export function ChatProvider({ children }) {
             Object.keys(prev).forEach((k) => {
               copy[k] = (prev[k] || []).map((m) =>
                 String(m.id) === String(messageId)
-                  ? { ...m, ...(serverMsg || {}) }
+                  ? { ...m, ...(messageObj || {}) }
                   : m
               );
             });
