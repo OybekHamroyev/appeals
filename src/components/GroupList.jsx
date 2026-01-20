@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
-import { ChatContext } from "../contexts/ChatContext";
+import { ChatContext } from "../contexts/ChatContextValue";
 import { TranslationContext } from "../contexts/TranslationContext";
+import Badge from "@mui/material/Badge";
 
 export default function GroupList() {
   const { groups, selectedGroup, selectGroup } = useContext(ChatContext);
@@ -14,7 +15,13 @@ export default function GroupList() {
             className={`tab ${g.id === selectedGroup ? "active" : ""}`}
             onClick={() => selectGroup(g.id)}
           >
-            {g.name}
+            <Badge
+              badgeContent={g.unreadTotal || 0}
+              color="error"
+              showZero={false}
+            >
+              {g.name}
+            </Badge>
           </li>
         ))}
       </ul>

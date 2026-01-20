@@ -1,6 +1,6 @@
 // Clean ChatWindow component
 import React, { useContext, useState, useRef, useEffect } from "react";
-import { ChatContext } from "../contexts/ChatContext";
+import { ChatContext } from "../contexts/ChatContextValue";
 import { AuthContext } from "../contexts/AuthContext";
 import { TranslationContext } from "../contexts/TranslationContext";
 import {
@@ -22,7 +22,10 @@ export default function ChatWindow() {
     editMessage,
     deleteMessage,
     removeLocalMessage,
+    markMessagesAsRead,
+    markConversationAsRead,
     sendingIds,
+    studentUnreadCount,
   } = useContext(ChatContext);
   const { user } = useContext(AuthContext);
   const { t } = useContext(TranslationContext);
@@ -35,6 +38,9 @@ export default function ChatWindow() {
   const prevIdsRef = useRef(new Set());
   const [enteringIds, setEnteringIds] = useState([]);
   const [enteredIds, setEnteredIds] = useState([]);
+  const messageRefsMap = useRef(new Map());
+  const readMessageIdsRef = useRef(new Set());
+  const markReadTimeoutRef = useRef(null);
 
   const convId =
     selectedStudent || (user?.role === "student" ? String(user.id) : null);
@@ -89,6 +95,145 @@ export default function ChatWindow() {
       }
     });
   }, [msgs.length]);
+
+  // Intersection Observer to mark messages as read when scrolled into view
+  useEffect(() => {
+    if (!hasConv || !user || !messagesRef.current) return;
+
+    // Reset read tracking when conversation changes
+    const prevConvId = messageRefsMap.current.get("prevConvId");
+    if (prevConvId !== convId) {
+      readMessageIdsRef.current.clear();
+      messageRefsMap.current.clear();
+      messageRefsMap.current.set("prevConvId", convId);
+    }
+
+    // Create Intersection Observer
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleMessageIds = [];
+        
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const messageId = entry.target.getAttribute("data-message-id");
+            const messageData = entry.target.getAttribute("data-message-data");
+            
+            if (messageId && messageData) {
+              try {
+                const msgData = JSON.parse(messageData);
+                const senderId = msgData.sender?.id || msgData.sender || null;
+                const isFromCurrentUser = String(senderId) === String(user?.id);
+                const isRealMessage = !msgData.optimistic && !String(messageId).startsWith("temp_");
+                
+                // Only mark messages from other person as read
+                if (!isFromCurrentUser && isRealMessage && !readMessageIdsRef.current.has(String(messageId))) {
+                  readMessageIdsRef.current.add(String(messageId));
+                  visibleMessageIds.push(messageId);
+                }
+              } catch (e) {
+                console.error("Error parsing message data", e);
+              }
+            }
+          }
+        });
+
+        // Debounce: mark messages as read after 500ms of being visible
+        if (visibleMessageIds.length > 0) {
+          if (markReadTimeoutRef.current) {
+            clearTimeout(markReadTimeoutRef.current);
+          }
+          markReadTimeoutRef.current = setTimeout(() => {
+            markMessagesAsRead(visibleMessageIds);
+            markReadTimeoutRef.current = null;
+          }, 500);
+        }
+      },
+      {
+        root: messagesRef.current,
+        rootMargin: "0px",
+        threshold: 0.5, // Message is considered visible when 50% is in view
+      }
+    );
+
+    // Function to observe all message elements
+    const observeMessages = () => {
+      const messageElements = messagesRef.current?.querySelectorAll('[data-message-id]');
+      messageElements?.forEach((el) => {
+        // Check if already observed
+        if (!messageRefsMap.current.has(el.getAttribute("data-message-id"))) {
+          observer.observe(el);
+          messageRefsMap.current.set(el.getAttribute("data-message-id"), el);
+        }
+      });
+    };
+
+    // Observe messages after DOM update
+    const timeoutId = setTimeout(observeMessages, 100);
+
+    // Also observe on scroll events to catch dynamically loaded messages (throttled)
+    let scrollTimeout = null;
+    const scrollHandler = () => {
+      if (scrollTimeout) return;
+      scrollTimeout = setTimeout(() => {
+        observeMessages();
+        scrollTimeout = null;
+      }, 200); // throttle scroll handler
+    };
+    messagesRef.current.addEventListener("scroll", scrollHandler, { passive: true });
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (markReadTimeoutRef.current) {
+        clearTimeout(markReadTimeoutRef.current);
+        markReadTimeoutRef.current = null;
+      }
+      if (messagesRef.current) {
+        messagesRef.current.removeEventListener("scroll", scrollHandler);
+      }
+      observer.disconnect();
+    };
+  }, [hasConv, convId, msgs.length, user?.id, markMessagesAsRead]);
+
+  // Mark all visible messages as read when conversation opens and user is at bottom
+  useEffect(() => {
+    if (!hasConv || !user || !messagesRef.current) return;
+    
+    // Only mark once when conversation first opens, not on every message update
+    let markedForConv = false;
+    const markKey = `marked_${convId}`;
+    const lastMarked = messageRefsMap.current.get(markKey);
+    
+    // Check if user is scrolled to bottom (within 200px)
+    const container = messagesRef.current;
+    const checkAndMark = () => {
+      if (markedForConv || lastMarked) return; // already marked for this conversation
+      const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      const isNearBottom = scrollBottom < 200;
+      
+      if (isNearBottom && msgs.length > 0) {
+        markedForConv = true;
+        messageRefsMap.current.set(markKey, true);
+        // Mark all messages as read if user is at bottom (only once per conversation)
+        setTimeout(() => {
+          markConversationAsRead();
+        }, 1500);
+      }
+    };
+    
+    // Reset marked state when conversation changes
+    if (lastMarked && messageRefsMap.current.get("prevConvId") !== convId) {
+      messageRefsMap.current.delete(markKey);
+      markedForConv = false;
+    }
+    
+    // Check after a short delay to allow messages to render
+    const timeoutId = setTimeout(checkAndMark, 800);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      // Note: we keep the markKey in the map to prevent re-marking
+    };
+  }, [hasConv, convId, user?.id, markConversationAsRead]);
 
   const isImage = (url) => /\.(jpe?g|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
   const isVideo = (url) => /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
@@ -211,81 +356,58 @@ export default function ChatWindow() {
       className={`col chat ${isStudentView ? "student-centered" : ""}`}
       style={{ display: "flex", flexDirection: "column", height: "100%" }}
     >
-      {isStudentView && (
-        <div
-          className="chat-header"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          {/* left: tutor */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div className="avatar">
-              {headerTutor ? (
-                headerTutor.photo ? (
+      {/* Chat header - show conversation partner name */}
+      {hasConv && (
+        <div className="chat-header">
+          {isStudentView && headerTutor && (
+            <div className="chat-header-avatar">
+              <Badge
+                badgeContent={studentUnreadCount || 0}
+                color="error"
+                overlap="circular"
+                showZero={false}
+              >
+                {headerTutor.photo ? (
                   <img
                     src={headerTutor.photo}
-                    alt="tutor"
+                    alt={headerTutor.full_name || "Tutor"}
                     style={{
                       width: 40,
                       height: 40,
-                      borderRadius: 999,
+                      borderRadius: "50%",
                       objectFit: "cover",
                     }}
                   />
                 ) : (
-                  <div className="avatar-initial">
-                    {(headerTutor.full_name || "T")[0]}
-                  </div>
-                )
-              ) : (
-                <div className="avatar-initial">T</div>
-              )}
-            </div>
-            <div className="title">
-              {headerTutor
-                ? headerTutor.full_name || headerTutor.fullName
-                : t("chat.tutorLabel")}
-            </div>
-          </div>
-
-          {/* right: student */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ textAlign: "right", marginRight: 8 }}>
-              <div style={{ fontWeight: 700 }}>
-                {headerStudent
-                  ? headerStudent.full_name || headerStudent.fullName
-                  : t("chat.studentLabel")}
-              </div>
-            </div>
-            <div className="avatar">
-              {headerStudent ? (
-                headerStudent.photo ? (
-                  <img
-                    src={headerStudent.photo}
-                    alt="student"
+                  <div
+                    className="avatar-initial"
                     style={{
                       width: 40,
                       height: 40,
-                      borderRadius: 999,
-                      objectFit: "cover",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      color: "#fff",
+                      fontWeight: 600,
+                      fontSize: 18,
                     }}
-                  />
-                ) : (
-                  <div className="avatar-initial">
-                    {
-                      (headerStudent.full_name ||
-                        headerStudent.fullName ||
-                        "S")[0]
-                    }
+                  >
+                    {(headerTutor.full_name || "T")[0].toUpperCase()}
                   </div>
-                )
-              ) : (
-                <div className="avatar-initial">S</div>
-              )}
+                )}
+              </Badge>
             </div>
+          )}
+          <div className="chat-header-name">
+            {user?.role === "tutor"
+              ? headerStudent
+                ? headerStudent.full_name || headerStudent.fullName
+                : t("chat.studentLabel")
+              : headerTutor
+              ? headerTutor.full_name || headerTutor.fullName
+              : t("chat.tutorLabel")}
           </div>
         </div>
       )}
@@ -327,6 +449,12 @@ export default function ChatWindow() {
           return (
             <div
               key={m.id}
+              data-message-id={m.id}
+              data-message-data={JSON.stringify({
+                id: m.id,
+                sender: m.sender,
+                optimistic: m.optimistic,
+              })}
               className={`message ${isFromTutor ? "me" : "them"} ${
                 isEntering ? "enter" : ""
               } ${isEntered ? "enter-active" : ""}`}
@@ -406,12 +534,6 @@ export default function ChatWindow() {
                     )}
                   </div>
                 )}
-                <div className="meta">
-                  {senderObj?.full_name ||
-                    senderObj?.fullName ||
-                    (isFromTutor ? user?.fullName : student?.fullName) ||
-                    t("chat.studentLabel")}
-                </div>
                 <div className="text">{msgText}</div>
 
                 {filesArr && filesArr.length > 0 && (
@@ -539,10 +661,14 @@ export default function ChatWindow() {
           ref={textInputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={t("chat.placeholder")}
+          placeholder="Xabar yozing..."
         />
-        <button type="submit" disabled={(sendingIds || []).length > 0}>
-          <FaPaperPlane /> <span className="btn-text">{t("chat.send")}</span>
+        <button
+          type="submit"
+          className="send-button"
+          disabled={(sendingIds || []).length > 0}
+        >
+          <FaPaperPlane /> <span className="btn-text">Yuborish</span>
         </button>
       </form>
     </main>

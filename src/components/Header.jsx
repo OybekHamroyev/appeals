@@ -7,15 +7,10 @@ import Avatar from "@mui/material/Avatar";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
-import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import Settings from "@mui/icons-material/Settings";
 import Logout from "@mui/icons-material/Logout";
 import logo from "../assets/logo.jpg";
-import Badge from "@mui/material/Badge";
-import { NotificationContext } from "../contexts/NotificationContext";
-
+import Box from "@mui/material/Box";
 export default function Header() {
   const { user, logout } = useContext(AuthContext);
   const { lang, setLang, t } = useContext(TranslationContext);
@@ -24,9 +19,6 @@ export default function Header() {
 
   const handleOpen = (e) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
-
-  const { notifications, unreadCount, markAsRead, clearAll } =
-    useContext(NotificationContext);
 
   return (
     <header className="app-header">
@@ -48,32 +40,60 @@ export default function Header() {
         />
 
         {/* Notification UI removed from header: unread count shown on avatar badge instead */}
-
-        <Tooltip
-          title={
-            unreadCount
-              ? `${unreadCount} unread notifications`
-              : "Account settings"
-          }
-        >
-          <Badge badgeContent={unreadCount} color="error">
-            <IconButton
-              onClick={handleOpen}
-              size="small"
-              sx={{ ml: 2 }}
-              aria-controls={open ? "account-menu" : undefined}
-              aria-haspopup="true"
-              aria-expanded={open ? "true" : undefined}
+        <Box>
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleClose}
+            PaperProps={{
+              elevation: 0,
+              sx: {
+                overflow: "visible",
+                filter: "drop-shadow(0px 2px 10px rgba(0,0,0,0.2))",
+                mt: 1.5,
+                "& .MuiAvatar-root": {
+                  width: 32,
+                  height: 32,
+                  ml: -0.5,
+                  mr: 1,
+                },
+                "&:before": {
+                  content: '""',
+                  display: "block",
+                  position: "absolute",
+                  top: 0,
+                  right: 14,
+                  width: 10,
+                  height: 10,
+                  bgcolor: "background.paper",
+                  transform: "translateY(-50%) rotate(45deg)",
+                  zIndex: 0,
+                },
+              },
+            }}
+          >
+            <MenuItem onClick={logout}>
+              <ListItemIcon>
+                <Logout fontSize="small" />
+              </ListItemIcon>
+              Logout
+            </MenuItem>
+          </Menu>
+          <IconButton
+            onClick={handleOpen}
+            size="small"
+            aria-controls={open ? "account-menu" : undefined}
+            aria-haspopup="true"
+            aria-expanded={open ? "true" : undefined}
+          >
+            <Avatar
+              src={user?.photo || undefined}
+              sx={{ width: 40, height: 40 }}
             >
-              <Avatar
-                src={user?.photo || undefined}
-                sx={{ width: 40, height: 40 }}
-              >
-                {!user?.photo && (user?.fullName ? user.fullName[0] : "U")}
-              </Avatar>
-            </IconButton>
-          </Badge>
-        </Tooltip>
+              {!user?.photo && (user?.fullName ? user.fullName[0] : "U")}
+            </Avatar>
+          </IconButton>
+        </Box>
       </div>
     </header>
   );

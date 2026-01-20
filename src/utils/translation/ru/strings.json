@@ -18,13 +18,13 @@
   "login.authFailed": "Аутентификация не удалась",
 
   "main.title": "Связаться с тютором",
-  "chat.selectStudent": "Выберите ученика, чтобы открыть чат",
+  "chat.selectStudent": "Выберите студента, чтобы открыть чат",
   "chat.selectGroup": "Выберите группу",
   "chat.placeholder": "Напишите сообщение...",
   "chat.send": "Отправить",
   "role.teacher": "Учитель",
-  "role.student": "Ученик",
-  "chat.studentLabel": "Ученик",
+  "role.student": "Студент",
+  "chat.studentLabel": "Студент",
   "chat.tutorLabel": "Репетитор",
   "chat.kb": "КБ"
 }

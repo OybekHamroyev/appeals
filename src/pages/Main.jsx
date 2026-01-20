@@ -4,15 +4,15 @@ import GroupList from "../components/GroupList";
 import StudentList from "../components/StudentList";
 import ChatWindow from "../components/ChatWindow";
 import { ChatProvider } from "../contexts/ChatContext";
+import { ChatContext } from "../contexts/ChatContextValue";
 import { AuthContext } from "../contexts/AuthContext";
 import "./main.css";
 import Select from "react-select";
-import { ChatContext } from "../contexts/ChatContext";
 
 export default function Main() {
   const { user } = useContext(AuthContext);
   return (
-    <ChatProvider>
+    <ChatProvider user={user} token={user?.token}>
       <div className="app-shell">
         <Header />
         {/* mobile student search: shown only at small widths (<=680) */}

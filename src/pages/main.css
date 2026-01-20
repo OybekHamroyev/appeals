@@ -6,8 +6,8 @@
 }
 /* when in student mode, use block layout so chat column expands fully */
 .layout.student-mode{display:block;padding:18px}
-.tutor-info{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:16px}
-.col{background:#ffffff;border-radius:10px;padding:14px;color:#071226;box-shadow:0 10px 30px rgba(2,6,23,0.06);display:flex;flex-direction:column;height:100%;min-height:0}
+.tutor-info{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:12px}
+.col{background:#ffffff;border-radius:10px;padding:10px;color:#071226;box-shadow:0 10px 30px rgba(2,6,23,0.06);display:flex;flex-direction:column;height:100%;min-height:0}
 .groups ul,.students ul{list-style:none;margin:0;padding:0}
 .group-tabs {
   grid-column: 1 / -1;
@@ -40,24 +40,157 @@
 .groups li.active,.students li.active{background:linear-gradient(90deg,#f0fbf3,#e6f9ea)}
 .avatar{width:44px;height:44px;border-radius:999px;background:#e6f6ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#0b1220}
 .student .meta{font-size:0.95rem}
+
+/* Student List - Modern Design */
+.student-search {
+  position: relative;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.student-search .search-icon {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.student-search .search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #071226;
+}
+
+.student-search .search-input::placeholder {
+  color: #94a3b8;
+}
+
+.student-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.student-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 4px;
+}
+
+.student-item:hover {
+  background-color: #f8fafc;
+}
+
+.student-item.active {
+  background: linear-gradient(90deg, #f0fbf3, #e6f9ea);
+}
+
+.student-avatar {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.student-avatar .avatar-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.student-avatar .avatar-initial {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+  font-size: 18px;
+}
+
+.student-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.student-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: #071226;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-preview {
+  font-size: 13px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-time {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.no-results {
+  padding: 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
 .chat{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 /* ensure chat column is positioned for composer sticky to work */
 .layout .chat{position:relative;display:flex;flex-direction:column}
 .chat.empty{display:flex;align-items:center;justify-content:center;color:#94a3b8}
-.chat-header{display:flex;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid rgba(2,6,23,0.04)}
+.chat-header{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;border-bottom:1px solid rgba(2,6,23,0.08);background:#fff;position:relative}
+.chat-header-avatar{position:absolute;left:16px;display:flex;align-items:center;justify-content:center}
+.chat-header-name{font-weight:600;font-size:16px;color:#071226}
 .messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0;scroll-behavior:smooth}
 .message{display:flex;align-items:flex-start;gap:8px}
 .msg-avatar{width:40px;flex:0 0 40px;display:flex;align-items:flex-start;justify-content:flex-start;margin-top:4px}
-.avatar-initial{width:36px;height:36px;border-radius:999px;background:#e6f6ff;display:flex;align-items:center;justify-content:center;font-weight:700;color:#075985}
+.avatar-initial{width:36px;height:36px;border-radius:999px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff}
+.message.them .avatar-initial{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
+.message.me .avatar-initial{background:linear-gradient(135deg,#14a44d 0%,#0a8b2b 100%)}
 .message.me{justify-content:flex-end}
-.bubble{max-width:78%;background:#f8fffa;padding:10px;border-radius:10px;border:1px solid rgba(11,17,34,0.03);word-break:break-word}
+.bubble{max-width:78%;padding:12px 16px;border-radius:16px;word-break:break-word;position:relative}
+.message.them .bubble{background:#ffffff;border:1px solid rgba(0,0,0,0.05);box-shadow:0 1px 2px rgba(0,0,0,0.05)}
+.message.me .bubble{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;box-shadow:0 2px 4px rgba(102,126,234,0.3)}
+.message.me .bubble .text{color:#fff}
+.message.them .bubble .text{color:#071226}
 .message .meta{font-size:0.75rem;color:#64748b;margin-bottom:6px}
 .composer{display:flex;gap:8px;padding:10px;border-top:1px solid rgba(2,6,23,0.04);align-items:center;flex:0 0 auto}
 /* make composer sticky and visible across layouts */
 .composer{position:sticky;bottom:12px;z-index:20;background:#fff}
-.composer input{flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef8;background:#f0f9ff;color:#071226}
+.composer input{flex:1;padding:12px 16px;border-radius:24px;border:1px solid #e6eef8;background:#f8fafc;color:#071226;font-size:14px;outline:none}
+.composer input:focus{border-color:#667eea}
 .composer input[type="file"]{flex:0 0 200px}
-.composer button{padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,#14a44d,#0a8b2b);border:none;color:#fff}
+.composer button.send-button{padding:12px 24px;border-radius:24px;background:linear-gradient(135deg,#14a44d,#0a8b2b);border:none;color:#fff;font-weight:600;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;display:flex;align-items:center;gap:6px}
+.composer button.send-button:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(20,164,77,0.3)}
+.composer button.send-button:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+.composer button.send-button svg{display:block;flex:0 0 auto;color:currentColor}
 
 .attachments{margin-top:8px;display:flex;flex-direction:column;gap:6px}
 .attachment{font-size:0.85rem;padding:6px;border-radius:6px;background:#f8fafc;border:1px solid #e6eef8;color:#0b1220}
@@ -112,7 +245,7 @@
   .composer input{padding:8px}
   /* chat column adjustments */
   .col.chat{padding:8px}
-  .messages{gap:8px}
+  .messages{gap:8px; padding:12px;}
   .message{gap:6px}
   .bubble{padding:8px;border-radius:8px}
   /* ellipsis icon/menu smaller */
@@ -149,10 +282,12 @@
   .composer .btn-text{display:none}
   .composer button{padding:6px;width:40px;height:32px}
   .composer button svg{width:16px;height:16px}
+  .layout.two-col{padding: 10px;}
 }
 
 /* message timestamp positioning: put timestamp below content in normal flow */
-.msg-ts{display:block;text-align:right;margin-top:8px;color:#64748b;font-size:0.75rem}
+.msg-ts{display:block;text-align:right;margin-top:6px;color:rgba(255,255,255,0.7);font-size:0.7rem}
+.message.them .msg-ts{color:#94a3b8}
 .msg-loading{position:absolute;left:6px;bottom:6px;font-size:10px;color:#60a5fa}
 
 .composer button[disabled]{opacity:0.6;cursor:default}
@@ -229,12 +364,14 @@
 @media (max-width:512px){
   .group-tabs .tab{font-size:0.85rem;padding:6px 10px}
   .site-title{font-size:1rem}
+   .chat-header .title{font-size:0.7rem}
 }
 
 @media (max-width:400px){
   .group-tabs .tab{font-size:0.75rem;padding:5px 8px}
   .site-title{font-size:0.9rem}
   /* ensure composer spacing is enough on very small screens */
+  .chat-header .title{font-size:0.6rem}
   .composer{left:8px;right:8px;bottom:8px;padding:8px}
 }
 

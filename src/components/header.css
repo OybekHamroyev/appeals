@@ -31,8 +31,8 @@
 
 /* adjustments for very small screens (<=400) */
 @media (max-width:400px){
-	.app-header{padding:8px 12px}
-	.app-header .right{gap:8px}
+	.app-header{padding:8px 10px;}
+	.app-header .right{gap:6px}
 	.lang-select{font-size:0.82rem;padding:4px}
 }
 
